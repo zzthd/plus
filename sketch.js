@@ -1,33 +1,28 @@
 let mic;
 let vol = 0;
-
 let firstImages = [];
 let guessImages = [];
 let endImages = [];
 
-let state = 'idle'; // 可为 'idle'（待机）| 'guess'（主图）| 'end'（结尾）
-let idleIndex = 0;
-let endIndex = 0;
+let state = "intro"; // 可选：intro, main, end
+let currentFrame = 0;
 let lastFrameTime = 0;
-let currentGuessIndex = 0;
 
-const idleSpeed = 150; // 每帧间隔 ms
-const endSpeed = 150;
-const micThreshold = 0.03;
-const activeThreshold = 3;
-let activeCount = 0;
-let idleToEndTimer = 0;
-const idleToEndDelay = 1000; // 停止吹气后 1 秒触发结束动画
+const firstFrameSpeed = 200; // 开头动画慢速
+const mainFrameSpeed = 80;   // 主动画节奏
+const endFrameSpeed = 120;   // 结尾动画稍慢
 
 function preload() {
   for (let i = 1; i <= 19; i++) {
     let filename = `first-${String(i).padStart(2, '0')}.png`;
     firstImages.push(loadImage(filename));
   }
+
   for (let i = 1; i <= 15; i++) {
     let filename = `guess-${String(i).padStart(2, '0')}.png`;
     guessImages.push(loadImage(filename));
   }
+
   for (let i = 1; i <= 9; i++) {
     let filename = `end-${String(i).padStart(2, '0')}.png`;
     endImages.push(loadImage(filename));
@@ -39,72 +34,57 @@ function setup() {
   mic = new p5.AudioIn();
   mic.start();
   imageMode(CENTER);
-  frameRate(30);
 }
 
 function draw() {
   background(255);
   vol = mic.getLevel();
+  let now = millis();
 
-  // 检测持续吹气
-  if (vol > micThreshold) {
-    activeCount++;
-    idleToEndTimer = millis(); // 重置不吹气计时器
-  } else {
-    activeCount = 0;
-  }
-
-  const now = millis();
-
-  // ================== 状态控制 ==================
-  if (state === 'idle') {
-    if (now - lastFrameTime > idleSpeed) {
-      idleIndex = (idleIndex + 1) % firstImages.length;
+  if (state === "intro") {
+    if (now - lastFrameTime > firstFrameSpeed) {
+      currentFrame++;
       lastFrameTime = now;
-    }
-
-    if (activeCount >= activeThreshold) {
-      state = 'guess';
-    }
-  }
-
-  else if (state === 'guess') {
-    // 计算当前音量对应的 guess 图索引
-    let guessIndex = floor(map(vol, 0.01, 0.3, 0, 14, true));
-    currentGuessIndex = guessIndex;
-
-    // 若 1 秒内没吹，切到 end 动画
-    if (now - idleToEndTimer > idleToEndDelay) {
-      state = 'end';
-      endIndex = 0;
-      lastFrameTime = now;
-    }
-  }
-
-  else if (state === 'end') {
-    if (now - lastFrameTime > endSpeed) {
-      endIndex++;
-      lastFrameTime = now;
-
-      if (endIndex >= endImages.length) {
-        state = 'idle';
-        idleIndex = 0;
+      if (currentFrame >= firstImages.length) {
+        currentFrame = 0;
+        state = "main";
       }
     }
+    showImage(firstImages[currentFrame]);
   }
 
-  // ================== 显示图像 ==================
-  let img;
-  if (state === 'idle') {
-    img = firstImages[idleIndex];
-  } else if (state === 'guess') {
-    img = guessImages[currentGuessIndex];
-  } else if (state === 'end') {
-    img = endImages[endIndex];
+  else if (state === "main") {
+    if (now - lastFrameTime > mainFrameSpeed) {
+      currentFrame = min(currentFrame + 1, guessImages.length - 1);
+      lastFrameTime = now;
+
+      // 如果强度达到峰值，自动触发结尾动画
+      if (vol > 0.5) {
+        currentFrame = 0;
+        state = "end";
+      }
+    }
+    showImage(guessImages[currentFrame]);
   }
 
-  if (img && img.width > 0) {
-    let scaleFactor = min(width / img.width, height / img.height) * 0.9;
-    image(img, width / 2, height / 2, img.width * scaleFactor, img.height * scaleFactor);
+  else if (state === "end") {
+    if (now - lastFrameTime > endFrameSpeed) {
+      currentFrame++;
+      lastFrameTime = now;
+      if (currentFrame >= endImages.length) {
+        currentFrame = endImages.length - 1; // 结束后停在最后一帧
+      }
+    }
+    showImage(endImages[currentFrame]);
   }
 }
+
+function showImage(img) {
+  if (img && img.width > 0) {
+    let scaleFactor = min(width / img.width, height / img.height) * 0.98;
+    let w = img.width * scaleFactor;
+    let h = img.height * scaleFactor;
+    image(img, width / 2, height / 2, w, h);
+  }
+}
+

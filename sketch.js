@@ -28,7 +28,7 @@ function preload() {
     let filename = `guess-${String(i).padStart(2, '0')}.png`;
     guessImages.push(loadImage(filename));
   }
-  for (let i = 1; i <= 12; i++) {
+  for (let i = 1; i <= 9; i++) {
     let filename = `end-${String(i).padStart(2, '0')}.png`;
     endImages.push(loadImage(filename));
   }

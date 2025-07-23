@@ -1,7 +1,7 @@
 // --- 全局变量 ---
 let mic;
 let vol = 0;
-let smoothedVol = 0; // 新增：用于平滑处理音量，减少抖动
+let smoothedVol = 0; // 用于平滑处理音量，减少抖动
 
 // 存放三组动画的数组
 let firstImages = []; // 开头待机动画
@@ -14,13 +14,14 @@ let currentFrame = 0;
 let lastFrameTime = 0;
 
 // --- 动画速度控制 (数值越大，播放越慢) ---
-const introFrameSpeed = 200; // 1. 开头动画速度，已调慢
+const introFrameSpeed = 200; // 开头动画速度
 const endFrameSpeed = 120;   // 结尾动画速度
 
 // --- 麦克风灵敏度控制 ---
-// 3. 提高了音量门槛，让交互对杂音不那么敏感
 const micThreshold = 0.03;      // 判定交互开始的最低音量
-const maxBlowVolume = 0.25;     // 吹气要达到这个音量才能把帘子吹到最高
+// 2. 调整了最大吹气音量。将这个值调高，意味着你需要用更大的力气才能把帘子吹到最高，
+// 从而实现了“分级”的效果，让轻吹和重吹有明显区别。你可以根据麦克风灵敏度调整这个值。
+const maxBlowVolume = 0.5;      // 吹气要达到这个音量才能把帘子吹到最高
 
 function preload() {
   // 加载开头动画
@@ -51,7 +52,7 @@ function setup() {
 
 function draw() {
   background(255);
-  // 使用 lerp 函数对音量进行平滑处理，0.2是平滑度，值越小越平滑
+  // 3. 使用 lerp 函数对音量进行平滑处理，能有效过滤瞬间的杂音
   vol = mic.getLevel();
   smoothedVol = lerp(smoothedVol, vol, 0.2);
   
@@ -76,13 +77,12 @@ function draw() {
 
   else if (state === "main") {
     // 状态二：主交互过程，根据吹气强度显示帘子高度
-    // 2. 将平滑后的音量映射到帘子动画的帧数上
     let frameIndex = map(smoothedVol, micThreshold, maxBlowVolume, 0, guessImages.length - 1, true);
     currentFrame = floor(frameIndex);
     
     showImage(guessImages[currentFrame]);
 
-    // 4. 如果帘子被吹到最高（即动画播放到最后一帧），则切换到结尾动画状态
+    // 如果帘子被吹到最高（即动画播放到最后一帧），则切换到结尾动画状态
     if (currentFrame >= guessImages.length - 1) {
       state = "end";
       currentFrame = 0; // 为结尾动画重置帧数
@@ -103,11 +103,14 @@ function draw() {
       lastFrameTime = now;
     }
     
-    // 4. 如果结尾动画播放完毕，则自动回到待机状态
+    // 4. 修复了结尾动画的循环逻辑
+    // 检查动画是否播放完毕
     if (currentFrame >= endImages.length) {
+      // 如果是，则重置状态，下一帧将播放开头动画
       state = "intro";
       currentFrame = 0;
     } else {
+      // 如果还没结束，则显示当前结尾动画的帧
       showImage(endImages[currentFrame]);
     }
   }
@@ -122,4 +125,3 @@ function showImage(img) {
     image(img, width / 2, height / 2, w, h);
   }
 }
-

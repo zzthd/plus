@@ -7,10 +7,17 @@ let endImages = [];
 let state = "intro"; // 可选：intro, main, end
 let currentFrame = 0;
 let lastFrameTime = 0;
+const micThreshold = 0.08; // 吹气音量的判定阈值
+let activeCount = 0; // 用于检测持续吹气的计数器
+const activeThreshold = 5; // 需要持续吹气3帧才算有效开始，防止误触
 
 const firstFrameSpeed = 200; // 开头动画慢速
 const mainFrameSpeed = 80;   // 主动画节奏
 const endFrameSpeed = 120;   // 结尾动画稍慢
+
+if (activeCount >= activeThreshold && !hasStartedBlowing) {
+    hasStartedBlowing = true;
+  }
 
 function preload() {
   for (let i = 1; i <= 19; i++) {
@@ -41,6 +48,20 @@ function draw() {
   vol = mic.getLevel();
   let now = millis();
 
+  if (vol < 0.1) {
+  index = 0;
+} else if (vol < 0.2) {
+  index = 3;
+} else if (vol < 0.3) {
+  index = 6;
+} else if (vol < 0.4) {
+  index = 9;
+} else if (vol < 0.5) {
+  index = 12;
+} else {
+  index = 13
+}
+
   if (state === "intro") {
     if (now - lastFrameTime > firstFrameSpeed) {
       currentFrame++;
@@ -59,7 +80,7 @@ function draw() {
       lastFrameTime = now;
 
       // 如果强度达到峰值，自动触发结尾动画
-      if (vol > 0.5) {
+      if (vol > 3) {
         currentFrame = 0;
         state = "end";
       }
